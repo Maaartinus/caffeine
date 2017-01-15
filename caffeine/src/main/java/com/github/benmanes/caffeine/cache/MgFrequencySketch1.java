@@ -170,17 +170,11 @@ final class MgFrequencySketch1<E> {
   }
 
   private boolean conservativeIncrement(long hash, @Nonnegative int count) {
-    count = Math.min(count, 15);
-
     final int oldFrequency = frequency(hash);
     if (oldFrequency == 15) {
       return false;
     }
-
     final int newFrequency = Math.min(oldFrequency + count, 15);
-    if (newFrequency == oldFrequency) {
-      return false;
-    }
 
     int change = 0;
     change += maximizeAt(hash, newFrequency);
@@ -207,8 +201,6 @@ final class MgFrequencySketch1<E> {
   }
 
   private boolean regularIncrement(long hash, @Nonnegative int count) {
-    count = Math.min(count, 15);
-
     int change = 0;
     change += incrementAt(hash, count);
     hash = respread1(hash);
@@ -221,7 +213,7 @@ final class MgFrequencySketch1<E> {
     return change > 0;
   }
 
-  private long incrementAt(long hash, int count) {
+  private long incrementAt(long hash, @Nonnegative int count) {
     final int index = index(hash);
     final int shift = shift(hash);
 
