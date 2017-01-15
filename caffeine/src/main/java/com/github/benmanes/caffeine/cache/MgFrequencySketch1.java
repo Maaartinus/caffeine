@@ -132,10 +132,6 @@ final class MgFrequencySketch1<E> {
 
   @Nonnegative
   private int frequency(long hash) {
-    if (isNotInitialized()) {
-      return 0;
-    }
-
     int result = extract(hash);
     hash = respread1(hash);
     result = Math.min(result, extract(hash));
@@ -199,7 +195,7 @@ final class MgFrequencySketch1<E> {
     return change > 0;
   }
 
-  private long maximizeAt(long hash, int value) {
+  private long maximizeAt(long hash, @Nonnegative int value) {
     final int index = index(hash);
     final int shift = shift(hash);
 
@@ -212,7 +208,7 @@ final class MgFrequencySketch1<E> {
   }
 
   private boolean regularIncrement(long hash, @Nonnegative int count) {
-    if (count > 15) count = 15;
+    count = Math.min(count, 15);
 
     int change = 0;
     change += incrementAt(hash, count);
@@ -226,9 +222,9 @@ final class MgFrequencySketch1<E> {
     return change > 0;
   }
 
-  private long incrementAt(long e, int count) {
-    final int index = index(e);
-    final int shift = shift(e);
+  private long incrementAt(long hash, int count) {
+    final int index = index(hash);
+    final int shift = shift(hash);
 
     final long old = (table[index] >>> shift) & 15;
     final long neu = Math.min(old + count, 15);
@@ -236,23 +232,6 @@ final class MgFrequencySketch1<E> {
     table[index] += delta << shift;
 
     return delta;
-  }
-
-  /**
-   * Increments the specified counter by 1 if it is not already at the maximum value (15).
-   *
-   * @param i the table index (16 counters)
-   * @param j the counter to increment
-   * @return if incremented
-   */
-  boolean incrementAt(int i, int j) {
-    int offset = j << 2;
-    long mask = (0xfL << offset);
-    if ((table[i] & mask) != mask) {
-      table[i] += (1L << offset);
-      return true;
-    }
-    return false;
   }
 
   /** Reduces every counter by half of its original value. */
@@ -275,7 +254,7 @@ final class MgFrequencySketch1<E> {
    * Applies a supplemental hash function to a given hashCode, which defends against poor quality
    * hash functions.
    */
-  long spread(int x) {
+  private long spread(long x) {
     x *= C1;
     x ^= (x >> 23) ^ (x >> 43);
     return x * randomSeed;
