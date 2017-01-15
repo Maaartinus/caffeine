@@ -86,13 +86,13 @@ public class FrequencySketchBenchmark {
     return mgSketch1Regular.frequency(ints[index++ & MASK]);
   }
 
-  @Benchmark
-  public void increment1Conservative() {
-    mgSketch1Conservative.increment(ints[index++ & MASK]);
-  }
-
-  @Benchmark
-  public int frequency1Conservative() {
-    return mgSketch1Conservative.frequency(ints[index++ & MASK]);
-  }
+  //  @Benchmark
+  //  public void increment1Conservative() {
+  //    mgSketch1Conservative.increment(ints[index++ & MASK]);
+  //  }
+  //
+  //  @Benchmark
+  //  public int frequency1Conservative() {
+  //    return mgSketch1Conservative.frequency(ints[index++ & MASK]);
+  //  }
 }

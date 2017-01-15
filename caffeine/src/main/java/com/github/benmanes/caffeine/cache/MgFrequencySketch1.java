@@ -64,15 +64,15 @@ final class MgFrequencySketch1<E> {
   private static final long C1 = 0x87c37b91114253d5L;
   private static final long C2 = 0x4cf5ad432745937fL;
 
-  static final long RESET_MASK = 0x7777777777777777L;
-  static final long ONE_MASK = 0x1111111111111111L;
+  static final int RESET_MASK = 0x77;
+  static final int ONE_MASK = 0x11;
 
   final long randomSeed;
   boolean conservative;
 
   int sampleSize;
   int tableShift;
-  long[] table;
+  byte[] table;
   int size;
 
   /**
@@ -92,12 +92,13 @@ final class MgFrequencySketch1<E> {
    */
   public void ensureCapacity(@Nonnegative long maximumSize) {
     Caffeine.requireArgument(maximumSize >= 0);
+    maximumSize *= Long.BYTES / Byte.BYTES;
     int maximum = (int) Math.min(maximumSize, Integer.MAX_VALUE >>> 1);
     if ((table != null) && (table.length >= maximum)) {
       return;
     }
 
-    table = new long[(maximum <= 2) ? 2 : ceilingNextPowerOfTwo(maximum)];
+    table = new byte[(maximum <= 2) ? 2 : ceilingNextPowerOfTwo(maximum)];
     tableShift = table.length - 1;
     sampleSize = (maximumSize == 0) ? 10 : (10 * maximum);
     if (sampleSize <= 0) {
@@ -131,13 +132,13 @@ final class MgFrequencySketch1<E> {
 
   @Nonnegative
   private int frequency(long hash) {
-    int result = extract(hash);
+    int result = extractLow(hash);
     hash = respread1(hash);
-    result = Math.min(result, extract(hash));
+    result = Math.min(result, extractHigh(hash));
     hash = respread2(hash);
-    result = Math.min(result, extract(hash));
+    result = Math.min(result, extractHigh(hash));
     hash = respread3(hash);
-    result = Math.min(result, extract(hash));
+    result = Math.min(result, extractLow(hash));
     return result;
   }
 
@@ -153,15 +154,15 @@ final class MgFrequencySketch1<E> {
       return;
     }
 
-    increment(spread(e.hashCode()), 1);
+    increment(spread(e.hashCode()));
   }
 
-  private void increment(long hash, @Nonnegative int count) {
+  private void increment(long hash) {
     boolean added;
     if (conservative) {
-      added = conservativeIncrement(hash, count);
+      added = conservativeIncrement(hash);
     } else {
-      added = regularIncrement(hash, count);
+      added = regularIncrement(hash);
     }
 
     if (added && (++size == sampleSize)) {
@@ -169,76 +170,61 @@ final class MgFrequencySketch1<E> {
     }
   }
 
-  private boolean conservativeIncrement(long hash, @Nonnegative int count) {
-    final int oldFrequency = frequency(hash);
-    if (oldFrequency == 15) {
-      return false;
-    }
-    final int newFrequency = Math.min(oldFrequency + count, 15);
+  private boolean conservativeIncrement(long hash) {
+    return regularIncrement(hash); // TODO
+    //    throw new RuntimeException("Not implemented");
+  }
 
-    int change = 0;
-    change += maximizeAt(hash, newFrequency);
+  private boolean regularIncrement(long hash) {
+    boolean added = false;
+    added |= incrementLow(hash);
     hash = respread1(hash);
-    change += maximizeAt(hash, newFrequency);
+    added |= incrementHigh(hash);
     hash = respread2(hash);
-    change += maximizeAt(hash, newFrequency);
+    added |= incrementHigh(hash);
     hash = respread3(hash);
-    change += maximizeAt(hash, newFrequency);
-
-    return change > 0;
-  }
-
-  private long maximizeAt(long hash, @Nonnegative int value) {
-    final int index = index(hash);
-    final int shift = shift(hash);
-
-    final long old = (table[index] >>> shift) & 15;
-    final long neu = Math.max(old, value);
-    final long delta = neu - old;
-    table[index] += delta << shift;
-
-    return delta;
-  }
-
-  private boolean regularIncrement(long hash, @Nonnegative int count) {
-    int change = 0;
-    change += incrementAt(hash, count);
-    hash = respread1(hash);
-    change += incrementAt(hash, count);
-    hash = respread2(hash);
-    change += incrementAt(hash, count);
-    hash = respread3(hash);
-    change += incrementAt(hash, count);
-
-    return change > 0;
-  }
-
-  private long incrementAt(long hash, @Nonnegative int count) {
-    final int index = index(hash);
-    final int shift = shift(hash);
-
-    final long old = (table[index] >>> shift) & 15;
-    final long neu = Math.min(old + count, 15);
-    final long delta = neu - old;
-    table[index] += delta << shift;
-
-    return delta;
+    added |= incrementLow(hash);
+    return added;
   }
 
   /** Reduces every counter by half of its original value. */
   void reset() {
     int count = 0;
     for (int i = 0; i < table.length; i++) {
-      count += Long.bitCount(table[i] & ONE_MASK);
-      table[i] = (table[i] >>> 1) & RESET_MASK;
+      count += Integer.bitCount(table[i] & ONE_MASK);
+      table[i] = (byte) ((table[i] >>> 1) & RESET_MASK);
     }
     size = (size >>> 1) - (count >>> 2);
   }
 
-  private int extract(long hash) {
+  private int extractLow(long hash) {
     final int index = index(hash);
-    final int shift = shift(hash);
-    return (int) (table[index] >>> shift) & 15;
+    return table[index] & 15;
+  }
+
+  private int extractHigh(long hash) {
+    final int index = index(hash);
+    return (table[index] >>> 4) & 15;
+  }
+
+  private boolean incrementHigh(long hash) {
+    final int index = index(hash);
+    int old = (table[index] >>> 4) & 15;
+    boolean result = old < 15;
+    if (result) {
+      table[index] += 16;
+    }
+    return result;
+  }
+
+  private boolean incrementLow(long hash) {
+    final int index = index(hash);
+    int old = table[index] & 15;
+    boolean result = old < 15;
+    if (result) {
+      table[index] += 1;
+    }
+    return result;
   }
 
   /**
@@ -270,12 +256,6 @@ final class MgFrequencySketch1<E> {
   private int index(long hash) {
     return (int) (hash >>> tableShift);
   }
-
-  /** Return a number from the set {0, 4, ..., 60}, i.e., a suitable shift distance for nibble extraction. */
-  private int shift(long hash) {
-    return (int) hash & (15 << 2);
-  }
-
 
   static int ceilingNextPowerOfTwo(int x) {
     // From Hacker's Delight, Chapter 3, Harry S. Warren Jr.
