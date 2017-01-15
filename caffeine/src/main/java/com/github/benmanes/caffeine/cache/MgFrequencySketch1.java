@@ -254,12 +254,12 @@ final class MgFrequencySketch1<E> {
   }
 
   private long respread3(long hash) {
-    return hash ^ (hash << 29)  ^ (hash << 39);
+    return hash ^ (hash >> 29)  ^ (hash >> 39);
   }
 
   /** Return a valid index into the table. */
   private int index(long hash) {
-    return (int) (hash >>> tableShift);
+    return (int) hash & (table.length - 1);
   }
 
   static int ceilingNextPowerOfTwo(int x) {
