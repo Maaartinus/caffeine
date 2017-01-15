@@ -66,8 +66,10 @@ final class MgFrequencySketch1<E> {
 
   static final int RESET_MASK = 0x77;
   static final int ONE_MASK = 0x11;
+  private static final long MULIPLIER_MASK = 0xf0f0f0f0f0f0ff00L;
 
-  final long randomSeed;
+  final long multiplier1;
+  final long multiplier2;
   boolean conservative;
 
   int sampleSize;
@@ -80,7 +82,10 @@ final class MgFrequencySketch1<E> {
    * when the maximum size of the cache has been determined.
    */
   public MgFrequencySketch1() {
-    this.randomSeed = ThreadLocalRandom.current().nextLong() | 1L;
+    // Generate random good multipliers by changing some bits of a known good multiplier.
+    // As the least significat byte stays unchanged, the multiplier is guaranteed to be odd.
+    this.multiplier1 = C1 ^ (ThreadLocalRandom.current().nextLong() & MULIPLIER_MASK);
+    this.multiplier2 = C2 ^ (ThreadLocalRandom.current().nextLong() & MULIPLIER_MASK);
   }
 
   /**
@@ -232,12 +237,10 @@ final class MgFrequencySketch1<E> {
    * hash functions.
    */
   private long spread(long x) {
-    x *= C1;
-    // This brings the best bits of the product (i.e., the most significant bits) to the position
-    // where they get used best by the second multiplication.
-    // It's an intrinsic executing as a single instruction on amd64.
-    x = Long.reverseBytes(x);
-    return x * randomSeed;
+    x *= multiplier1;
+    x ^= (x >> 23) ^ (x >> 43);
+    x *= multiplier2;
+    return x;
   }
 
   private long respread1(long hash) {
