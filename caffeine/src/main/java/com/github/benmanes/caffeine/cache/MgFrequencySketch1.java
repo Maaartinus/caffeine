@@ -250,11 +250,11 @@ final class MgFrequencySketch1<E> {
   }
 
   private long respread2(long hash) {
-    return respread1(hash);
+    return Long.rotateLeft(hash, 32);
   }
 
   private long respread3(long hash) {
-    return Long.rotateLeft(hash, 32);
+    return hash ^ (hash << 29)  ^ (hash << 39);
   }
 
   /** Return a valid index into the table. */
