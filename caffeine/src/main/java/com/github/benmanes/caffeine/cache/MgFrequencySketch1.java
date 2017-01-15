@@ -60,15 +60,18 @@ final class MgFrequencySketch1<E> {
    * https://www.usenix.org/legacy/events/sec03/tech/full_papers/crosby/crosby.pdf
    */
 
-  static final long[] SEED = new long[] { // A mixture of seeds from FNV-1a, CityHash, and Murmur3
-      0xc3a5c85c97cb3127L, 0xb492b66fbe98f273L, 0x9ae16a3b2f90404fL, 0xcbf29ce484222325L};
+  // Taken from Murmur3.
+  private static final long C1 = 0x87c37b91114253d5L;
+  private static final long C2 = 0x4cf5ad432745937fL;
+
   static final long RESET_MASK = 0x7777777777777777L;
   static final long ONE_MASK = 0x1111111111111111L;
 
   final int randomSeed;
+  boolean conservative;
 
   int sampleSize;
-  int tableMask;
+  int tableShift;
   long[] table;
   int size;
 
@@ -95,8 +98,8 @@ final class MgFrequencySketch1<E> {
       return;
     }
 
-    table = new long[(maximum == 0) ? 1 : ceilingNextPowerOfTwo(maximum)];
-    tableMask = Math.max(0, table.length - 1);
+    table = new long[(maximum <= 2) ? 2 : ceilingNextPowerOfTwo(maximum)];
+    tableShift = table.length - 1;
     sampleSize = (maximumSize == 0) ? 10 : (10 * maximum);
     if (sampleSize <= 0) {
       sampleSize = Integer.MAX_VALUE;
@@ -124,15 +127,23 @@ final class MgFrequencySketch1<E> {
       return 0;
     }
 
-    int hash = spread(e.hashCode());
-    int start = (hash & 3) << 2;
-    int frequency = Integer.MAX_VALUE;
-    for (int i = 0; i < 4; i++) {
-      int index = indexOf(hash, i);
-      int count = (int) ((table[index] >>> ((start + i) << 2)) & 0xfL);
-      frequency = Math.min(frequency, count);
+    return frequency(spread(e.hashCode()));
+  }
+
+  @Nonnegative
+  private int frequency(long hash) {
+    if (isNotInitialized()) {
+      return 0;
     }
-    return frequency;
+
+    int result = extract(hash);
+    hash = respread1(hash);
+    result = Math.min(result, extract(hash));
+    hash = respread2(hash);
+    result = Math.min(result, extract(hash));
+    hash = respread3(hash);
+    result = Math.min(result, extract(hash));
+    return result;
   }
 
   /**
@@ -147,23 +158,84 @@ final class MgFrequencySketch1<E> {
       return;
     }
 
-    int hash = spread(e.hashCode());
-    int start = (hash & 3) << 2;
+    increment(spread(e.hashCode()), 1);
+  }
 
-    // Loop unrolling improves throughput by 5m ops/s
-    int index0 = indexOf(hash, 0);
-    int index1 = indexOf(hash, 1);
-    int index2 = indexOf(hash, 2);
-    int index3 = indexOf(hash, 3);
-
-    boolean added = incrementAt(index0, start);
-    added |= incrementAt(index1, start + 1);
-    added |= incrementAt(index2, start + 2);
-    added |= incrementAt(index3, start + 3);
+  private void increment(long hash, @Nonnegative int count) {
+    boolean added;
+    if (conservative) {
+      added = conservativeIncrement(hash, count);
+    } else {
+      added = regularIncrement(hash, count);
+    }
 
     if (added && (++size == sampleSize)) {
       reset();
     }
+  }
+
+  private boolean conservativeIncrement(long hash, @Nonnegative int count) {
+    count = Math.min(count, 15);
+
+    final int oldFrequency = frequency(hash);
+    if (oldFrequency == 15) {
+      return false;
+    }
+
+    final int newFrequency = Math.min(oldFrequency + count, 15);
+    if (newFrequency == oldFrequency) {
+      return false;
+    }
+
+    int change = 0;
+    change += maximizeAt(hash, newFrequency);
+    hash = respread1(hash);
+    change += maximizeAt(hash, newFrequency);
+    hash = respread2(hash);
+    change += maximizeAt(hash, newFrequency);
+    hash = respread3(hash);
+    change += maximizeAt(hash, newFrequency);
+
+    return change > 0;
+  }
+
+  private long maximizeAt(long hash, int value) {
+    final int index = index(hash);
+    final int shift = shift(hash);
+
+    final long old = (table[index] >>> shift) & 15;
+    final long neu = Math.max(old, value);
+    final long delta = neu - old;
+    table[index] += delta << shift;
+
+    return delta;
+  }
+
+  private boolean regularIncrement(long hash, @Nonnegative int count) {
+    if (count > 15) count = 15;
+
+    int change = 0;
+    change += incrementAt(hash, count);
+    hash = respread1(hash);
+    change += incrementAt(hash, count);
+    hash = respread2(hash);
+    change += incrementAt(hash, count);
+    hash = respread3(hash);
+    change += incrementAt(hash, count);
+
+    return change > 0;
+  }
+
+  private long incrementAt(long e, int count) {
+    final int index = index(e);
+    final int shift = shift(e);
+
+    final long old = (table[index] >>> shift) & 15;
+    final long neu = Math.min(old + count, 15);
+    final long delta = neu - old;
+    table[index] += delta << shift;
+
+    return delta;
   }
 
   /**
@@ -193,28 +265,47 @@ final class MgFrequencySketch1<E> {
     size = (size >>> 1) - (count >>> 2);
   }
 
-  /**
-   * Returns the table index for the counter at the specified depth.
-   *
-   * @param item the element's hash
-   * @param i the counter depth
-   * @return the table index
-   */
-  int indexOf(int item, int i) {
-    long hash = SEED[i] * item;
-    hash += (hash >> 32);
-    return ((int) hash) & tableMask;
+  private int extract(long hash) {
+    final int index = index(hash);
+    final int shift = shift(hash);
+    return (int) (table[index] >>> shift) & 15;
   }
 
   /**
    * Applies a supplemental hash function to a given hashCode, which defends against poor quality
    * hash functions.
    */
-  int spread(int x) {
-    x = ((x >>> 16) ^ x) * 0x45d9f3b;
-    x = ((x >>> 16) ^ x) * randomSeed;
-    return (x >>> 16) ^ x;
+  long spread(int x) {
+    x *= C1;
+    x ^= (x >> 23) ^ (x >> 43);
+    return x * randomSeed;
   }
+
+  private long respread1(long hash) {
+    // This is enough as each operation uses less than a half of the input.
+    // After the rotation, other bits get used.
+    return Long.rotateLeft(hash, 32);
+  }
+
+  private long respread2(long hash) {
+    return hash * C2;
+  }
+
+  private long respread3(long hash) {
+    // See respread1.
+    return Long.rotateLeft(hash, 32);
+  }
+
+  /** Return a valid index into the table. */
+  private int index(long hash) {
+    return (int) (hash >>> tableShift);
+  }
+
+  /** Return a number from the set {0, 4, ..., 60}, i.e., a suitable shift distance for nibble extraction. */
+  private int shift(long hash) {
+    return (int) hash & (15 << 2);
+  }
+
 
   static int ceilingNextPowerOfTwo(int x) {
     // From Hacker's Delight, Chapter 3, Harry S. Warren Jr.

@@ -39,6 +39,7 @@ public class FrequencySketchBenchmark {
   int index = 0;
   Integer[] ints;
   FrequencySketch<Integer> sketch;
+  MgFrequencySketch1<Integer> mgSketch1;
 
   @Setup
   public void setup() {
@@ -50,6 +51,7 @@ public class FrequencySketchBenchmark {
     for (int i = 0; i < SIZE; i++) {
       ints[i] = generator.nextValue().intValue();
       sketch.increment(i);
+      mgSketch1.increment(i);
     }
   }
 
@@ -60,6 +62,16 @@ public class FrequencySketchBenchmark {
 
   @Benchmark
   public int frequency() {
+    return sketch.frequency(ints[index++ & MASK]);
+  }
+
+  @Benchmark
+  public void mgIncrement1() {
+    sketch.increment(ints[index++ & MASK]);
+  }
+
+  @Benchmark
+  public int mgFrequency1() {
     return sketch.frequency(ints[index++ & MASK]);
   }
 }
