@@ -246,17 +246,14 @@ final class MgFrequencySketch1<E> {
   }
 
   private long respread1(long hash) {
-    // This is enough as each operation uses less than a half of the input.
-    // After the rotation, other bits get used.
-    return Long.rotateLeft(hash, 32);
+    return Long.rotateLeft(hash, 32) ^ ((hash<<23) + (hash>>19));
   }
 
   private long respread2(long hash) {
-    return C1 * hash;
+    return respread1(hash);
   }
 
   private long respread3(long hash) {
-    // See respread1.
     return Long.rotateLeft(hash, 32);
   }
 
