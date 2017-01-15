@@ -80,9 +80,7 @@ final class MgFrequencySketch1<E> {
    * when the maximum size of the cache has been determined.
    */
   public MgFrequencySketch1() {
-    int seed = ThreadLocalRandom.current().nextInt();
-    // Ensure that at least the lower half is a good multiplier.
-    this.randomSeed = ((long) seed << 32) + C1;
+    this.randomSeed = ThreadLocalRandom.current().nextLong() | 1L;
   }
 
   /**
@@ -256,9 +254,9 @@ final class MgFrequencySketch1<E> {
    * hash functions.
    */
   private long spread(long x) {
-    x *= randomSeed;
+    x *= C1;
     x ^= (x >> 23) ^ (x >> 43);
-    return x;
+    return x * randomSeed;
   }
 
   private long respread1(long hash) {
@@ -268,7 +266,7 @@ final class MgFrequencySketch1<E> {
   }
 
   private long respread2(long hash) {
-    return (hash ^ (hash >>> 32)) * C2;
+    return hash * C2;
   }
 
   private long respread3(long hash) {
