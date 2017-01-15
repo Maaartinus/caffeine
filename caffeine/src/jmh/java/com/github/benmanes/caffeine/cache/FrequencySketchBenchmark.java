@@ -16,7 +16,6 @@
 package com.github.benmanes.caffeine.cache;
 
 import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -32,7 +31,6 @@ import com.yahoo.ycsb.generator.ScrambledZipfianGenerator;
  * @author ben.manes@gmail.com (Ben Manes)
  */
 @State(Scope.Benchmark)
-@Fork(5)
 public class FrequencySketchBenchmark {
   private static final int SIZE = (2 << 14);
   private static final int MASK = SIZE - 1;

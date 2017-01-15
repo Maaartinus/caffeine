@@ -67,7 +67,7 @@ final class MgFrequencySketch1<E> {
   static final long RESET_MASK = 0x7777777777777777L;
   static final long ONE_MASK = 0x1111111111111111L;
 
-  final int randomSeed;
+  final long randomSeed;
   boolean conservative;
 
   int sampleSize;
@@ -81,7 +81,8 @@ final class MgFrequencySketch1<E> {
    */
   public MgFrequencySketch1() {
     int seed = ThreadLocalRandom.current().nextInt();
-    this.randomSeed = ((seed & 1) == 0) ? seed + 1 : seed;
+    // Ensure that at least the lower half is a good multiplier.
+    this.randomSeed = ((long) seed << 32) + C1;
   }
 
   /**
@@ -255,9 +256,9 @@ final class MgFrequencySketch1<E> {
    * hash functions.
    */
   private long spread(long x) {
-    x *= C1;
+    x *= randomSeed;
     x ^= (x >> 23) ^ (x >> 43);
-    return x * randomSeed;
+    return x;
   }
 
   private long respread1(long hash) {
@@ -267,7 +268,7 @@ final class MgFrequencySketch1<E> {
   }
 
   private long respread2(long hash) {
-    return hash * C2;
+    return (hash ^ (hash >>> 32)) * C2;
   }
 
   private long respread3(long hash) {

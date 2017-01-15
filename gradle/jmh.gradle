@@ -58,5 +58,5 @@ jmh {
   failOnError = true
   iterations = 10
   forceGC = true
-  fork = 1
+  fork = 3
 }
