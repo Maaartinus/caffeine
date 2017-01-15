@@ -233,7 +233,10 @@ final class MgFrequencySketch1<E> {
    */
   private long spread(long x) {
     x *= C1;
-    x ^= (x >> 23) ^ (x >> 43);
+    // This brings the best bits of the product (i.e., the most significant bits) to the position
+    // where they get used best by the second multiplication.
+    // It's an intrinsic executing as a single instruction on amd64.
+    x = Long.reverseBytes(x);
     return x * randomSeed;
   }
 
@@ -244,7 +247,7 @@ final class MgFrequencySketch1<E> {
   }
 
   private long respread2(long hash) {
-    return hash * C2;
+    return hash ^ (hash << 23) ^ (hash << 43);
   }
 
   private long respread3(long hash) {
