@@ -183,8 +183,7 @@ final class MgFrequencySketch1<E> {
   }
 
   private boolean regularIncrement(long hash) {
-    boolean added = false;
-    added |= incrementLow(hash);
+    boolean added = incrementLow(hash);
     hash = respread1(hash);
     added |= incrementHigh(hash);
     hash = respread2(hash);
@@ -236,7 +235,7 @@ final class MgFrequencySketch1<E> {
 
   /**
    * Applies a supplemental hash function to a given hashCode, which defends against poor quality
-   * hash functions.
+   * hash functions. This function is injective, which was verified by an exhaustive text.
    */
   private long spread(int hash) {
     long x = C1 * hash;
