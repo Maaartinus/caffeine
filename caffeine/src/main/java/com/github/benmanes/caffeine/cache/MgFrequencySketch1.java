@@ -205,17 +205,17 @@ final class MgFrequencySketch1<E> {
   }
 
   private int extractLow(long hash) {
-    final int index = index(hash);
+    final int index = indexLow(hash);
     return table[index] & 15;
   }
 
   private int extractHigh(long hash) {
-    final int index = index(hash);
+    final int index = indexHigh(hash);
     return (table[index] >>> 4) & 15;
   }
 
   private boolean incrementHigh(long hash) {
-    final int index = index(hash);
+    final int index = indexHigh(hash);
     int old = (table[index] >>> 4) & 15;
     boolean result = old < 15;
     if (result) {
@@ -225,7 +225,7 @@ final class MgFrequencySketch1<E> {
   }
 
   private boolean incrementLow(long hash) {
-    final int index = index(hash);
+    final int index = indexLow(hash);
     int old = table[index] & 15;
     boolean result = old < 15;
     if (result) {
@@ -238,28 +238,32 @@ final class MgFrequencySketch1<E> {
    * Applies a supplemental hash function to a given hashCode, which defends against poor quality
    * hash functions.
    */
-  private long spread(long x) {
-    x *= multiplier1;
-    x ^= (x >> 23) ^ (x >> 43);
-    x *= multiplier2;
-    return x;
+  private long spread(int hash) {
+    long x = C1 * hash;
+    long y = C2 * hash;
+    x ^= (x>>23) + (x>>47);
+    y ^= (y>>43);
+    return x + y;
   }
 
   private long respread1(long hash) {
-    return Long.rotateLeft(hash, 32) ^ ((hash<<23) + (hash>>19));
+    return hash;
   }
 
   private long respread2(long hash) {
-    return Long.rotateLeft(hash, 32);
+    return hash ^ (hash << 29)  ^ (hash >> 39);
   }
 
   private long respread3(long hash) {
-    return hash ^ (hash >> 29)  ^ (hash >> 39);
+    return hash;
   }
 
-  /** Return a valid index into the table. */
-  private int index(long hash) {
+  private int indexLow(long hash) {
     return (int) hash & tableMask;
+  }
+
+  private int indexHigh(long hash) {
+    return (int) (hash >>> tableShift);
   }
 
   static int ceilingNextPowerOfTwo(int x) {
