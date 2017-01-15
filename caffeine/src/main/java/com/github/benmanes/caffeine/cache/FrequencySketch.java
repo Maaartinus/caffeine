@@ -77,8 +77,7 @@ final class FrequencySketch<E> {
    * when the maximum size of the cache has been determined.
    */
   public FrequencySketch() {
-    int seed = ThreadLocalRandom.current().nextInt();
-    this.randomSeed = ((seed & 1) == 0) ? seed + 1 : seed;
+    this.randomSeed = ThreadLocalRandom.current().nextInt() | 1;
   }
 
   /**
