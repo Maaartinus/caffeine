@@ -250,7 +250,7 @@ final class MgFrequencySketch1<E> {
   }
 
   private long respread2(long hash) {
-    return hash ^ (hash << 23) ^ (hash << 43);
+    return C1 * hash;
   }
 
   private long respread3(long hash) {
