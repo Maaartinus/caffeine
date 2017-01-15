@@ -74,6 +74,7 @@ final class MgFrequencySketch1<E> {
 
   int sampleSize;
   int tableShift;
+  int tableMask;
   byte[] table;
   int size;
 
@@ -104,7 +105,8 @@ final class MgFrequencySketch1<E> {
     }
 
     table = new byte[(maximum <= 2) ? 2 : ceilingNextPowerOfTwo(maximum)];
-    tableShift = table.length - 1;
+    tableMask = table.length - 1;
+    tableShift = Long.numberOfLeadingZeros(tableMask);
     sampleSize = (maximumSize == 0) ? 10 : (10 * maximum);
     if (sampleSize <= 0) {
       sampleSize = Integer.MAX_VALUE;
@@ -141,9 +143,9 @@ final class MgFrequencySketch1<E> {
     hash = respread1(hash);
     result = Math.min(result, extractHigh(hash));
     hash = respread2(hash);
-    result = Math.min(result, extractHigh(hash));
-    hash = respread3(hash);
     result = Math.min(result, extractLow(hash));
+    hash = respread3(hash);
+    result = Math.min(result, extractHigh(hash));
     return result;
   }
 
@@ -186,9 +188,9 @@ final class MgFrequencySketch1<E> {
     hash = respread1(hash);
     added |= incrementHigh(hash);
     hash = respread2(hash);
-    added |= incrementHigh(hash);
-    hash = respread3(hash);
     added |= incrementLow(hash);
+    hash = respread3(hash);
+    added |= incrementHigh(hash);
     return added;
   }
 
