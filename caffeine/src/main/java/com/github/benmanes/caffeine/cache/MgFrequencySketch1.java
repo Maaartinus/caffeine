@@ -29,7 +29,7 @@ import javax.annotation.concurrent.NotThreadSafe;
  * @author ben.manes@gmail.com (Ben Manes)
  */
 @NotThreadSafe
-final class FrequencySketch<E> {
+final class MgFrequencySketch1<E> {
 
   /*
    * This class maintains a 4-bit CountMinSketch [1] with periodic aging to provide the popularity
@@ -76,7 +76,7 @@ final class FrequencySketch<E> {
    * Creates a lazily initialized frequency sketch, requiring {@link #ensureCapacity} be called
    * when the maximum size of the cache has been determined.
    */
-  public FrequencySketch() {
+  public MgFrequencySketch1() {
     int seed = ThreadLocalRandom.current().nextInt();
     this.randomSeed = ((seed & 1) == 0) ? seed + 1 : seed;
   }
