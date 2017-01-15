@@ -259,7 +259,7 @@ final class MgFrequencySketch1<E> {
 
   /** Return a valid index into the table. */
   private int index(long hash) {
-    return (int) hash & (table.length - 1);
+    return (int) hash & tableMask;
   }
 
   static int ceilingNextPowerOfTwo(int x) {
