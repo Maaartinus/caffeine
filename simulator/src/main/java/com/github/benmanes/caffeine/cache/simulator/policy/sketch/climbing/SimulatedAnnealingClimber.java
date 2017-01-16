@@ -108,7 +108,7 @@ final class SimulatedAnnealingClimber implements HillClimber {
 
       if ((hitRate < previousHitRate) && acceptanceProbability <= criteria) {
         increaseWindow = !increaseWindow;
-        pivot--;
+        pivot = Math.max(pivot - 1, 1);
       }
 
       if ((previousHitRate - hitRate) > coolDownTolerance) {
