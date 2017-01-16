@@ -216,19 +216,21 @@ final class MgFrequencySketch1<E> {
   private boolean incrementLow(long hash) {
     final int index = indexLow(hash);
     int old = table[index] & 0x0F;
-    int neu = Math.min(0x0F, old + 0x01);
-    int diff = neu - old;
-    table[index] += diff;
-    return diff != 0;
+    boolean result = old != 0x0F;
+    if (result) {
+      table[index] += 0x01;
+    }
+    return result;
   }
 
   private boolean incrementHigh(long hash) {
     final int index = indexHigh(hash);
     int old = table[index] & 0xF0;
-    int neu = Math.min(0xF0, old + 0x10);
-    int diff = neu - old;
-    table[index] += diff;
-    return diff != 0;
+    boolean result = old != 0xF0;
+    if (result) {
+      table[index] += 0x10;
+    }
+    return result;
   }
 
   /**
