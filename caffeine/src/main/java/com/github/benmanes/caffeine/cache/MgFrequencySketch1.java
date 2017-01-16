@@ -205,32 +205,28 @@ final class MgFrequencySketch1<E> {
 
   private int extractLow(long hash) {
     final int index = indexLow(hash);
-    return table[index] & 15;
+    return table[index] & 0xF;
   }
 
   private int extractHigh(long hash) {
     final int index = indexHigh(hash);
-    return (table[index] >>> 4) & 15;
-  }
-
-  private boolean incrementHigh(long hash) {
-    final int index = indexHigh(hash);
-    int old = (table[index] >>> 4) & 15;
-    boolean result = old < 15;
-    if (result) {
-      table[index] += 16;
-    }
-    return result;
+    return (table[index] >>> 4) & 0xF;
   }
 
   private boolean incrementLow(long hash) {
     final int index = indexLow(hash);
-    int old = table[index] & 15;
-    boolean result = old < 15;
-    if (result) {
-      table[index] += 1;
-    }
-    return result;
+    int old = table[index] & 0x0F;
+    int neu = Math.min(0x0F, old + 0x01);
+    table[index] += neu - old;
+    return neu != old;
+  }
+
+  private boolean incrementHigh(long hash) {
+    final int index = indexHigh(hash);
+    int old = table[index] & 0xF0;
+    int neu = Math.min(0xF0, old + 0x10);
+    table[index] += neu - old;
+    return neu != old;
   }
 
   /**
